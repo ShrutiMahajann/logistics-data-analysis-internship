@@ -1,0 +1,140 @@
+# Week 3: Advanced Data Analysis and Visualization in Logistics
+# Dataset: Delivery_Logistics.csv
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Load data
+df = pd.read_csv("../Delivery_Logistics.csv")
+
+# Convert datetime-like hour fields into numeric hours
+for col in ["delivery_time_hours", "expected_time_hours"]:
+    parsed = pd.to_datetime(df[col], errors="coerce")
+    df[col] = parsed.dt.nanosecond.astype(float)
+
+# Create analytical variables
+df["delay_hours"] = df["delivery_time_hours"] - df["expected_time_hours"]
+df["delayed_flag"] = (df["delayed"].str.lower() == "yes").astype(int)
+
+# -----------------------------
+# 1. Descriptive statistics
+# -----------------------------
+numeric_cols = [
+    "distance_km", "package_weight_kg",
+    "delivery_time_hours", "expected_time_hours",
+    "delivery_rating", "delivery_cost", "delay_hours"
+]
+
+print("Descriptive statistics:")
+print(df[numeric_cols].describe())
+
+print("\nOverall delay rate:")
+print(df["delayed_flag"].mean() * 100)
+
+# -----------------------------
+# 2. Distribution of delivery time
+# -----------------------------
+plt.figure(figsize=(8, 5))
+plt.hist(df["delivery_time_hours"], bins=20)
+plt.xlabel("Delivery Time (hours)")
+plt.ylabel("Number of Shipments")
+plt.title("Distribution of Delivery Time")
+plt.tight_layout()
+plt.show()
+
+# -----------------------------
+# 3. Distance vs delivery time
+# -----------------------------
+plt.figure(figsize=(8, 5))
+plt.scatter(
+    df["distance_km"],
+    df["delivery_time_hours"],
+    alpha=0.18,
+    s=8
+)
+plt.xlabel("Distance (km)")
+plt.ylabel("Delivery Time (hours)")
+plt.title("Distance vs Delivery Time")
+plt.tight_layout()
+plt.show()
+
+# -----------------------------
+# 4. Delay rate by weather
+# -----------------------------
+weather_delay = (
+    df.groupby("weather_condition")["delayed_flag"]
+      .mean()
+      .sort_values(ascending=False) * 100
+)
+
+plt.figure(figsize=(8, 5))
+plt.bar(weather_delay.index, weather_delay.values)
+plt.xlabel("Weather Condition")
+plt.ylabel("Delay Rate (%)")
+plt.title("Delay Rate by Weather Condition")
+plt.xticks(rotation=25, ha="right")
+plt.tight_layout()
+plt.show()
+
+# -----------------------------
+# 5. Delay rate by delivery partner
+# -----------------------------
+partner_delay = (
+    df.groupby("delivery_partner")["delayed_flag"]
+      .mean()
+      .sort_values(ascending=False) * 100
+)
+
+plt.figure(figsize=(9, 5))
+plt.bar(partner_delay.index, partner_delay.values)
+plt.xlabel("Delivery Partner")
+plt.ylabel("Delay Rate (%)")
+plt.title("Delivery Delay Rate by Delivery Partner")
+plt.xticks(rotation=35, ha="right")
+plt.tight_layout()
+plt.show()
+
+# -----------------------------
+# 6. Correlation analysis
+# -----------------------------
+corr = df[numeric_cols].corr()
+
+print("\nCorrelation matrix:")
+print(corr.round(3))
+
+plt.figure(figsize=(8, 6))
+plt.imshow(corr, aspect="auto")
+plt.colorbar(label="Correlation")
+plt.xticks(range(len(corr.columns)), corr.columns, rotation=45, ha="right")
+plt.yticks(range(len(corr.columns)), corr.columns)
+plt.title("Correlation Matrix of Key Numerical Variables")
+plt.tight_layout()
+plt.show()
+
+# -----------------------------
+# 7. Grouped logistics insights
+# -----------------------------
+print("\nWeather performance:")
+print(
+    df.groupby("weather_condition")
+      .agg(
+          shipments=("delivery_id", "count"),
+          avg_delivery_time=("delivery_time_hours", "mean"),
+          delay_rate=("delayed_flag", "mean"),
+          avg_cost=("delivery_cost", "mean")
+      )
+      .sort_values("delay_rate", ascending=False)
+)
+
+print("\nDelivery partner performance:")
+print(
+    df.groupby("delivery_partner")
+      .agg(
+          shipments=("delivery_id", "count"),
+          avg_delivery_time=("delivery_time_hours", "mean"),
+          delay_rate=("delayed_flag", "mean"),
+          avg_rating=("delivery_rating", "mean")
+      )
+      .sort_values("delay_rate")
+)
